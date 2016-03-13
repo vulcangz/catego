@@ -1,6 +1,10 @@
 package catego
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/juju/errgo/errors"
+)
 
 type Tree struct {
 	sync.RWMutex
@@ -58,4 +62,30 @@ func (t *Tree) Add(current ID, parent ID) {
 
 	t.registry[parent].Children = append(t.registry[parent].Children, t.registry[current])
 
+}
+
+func (t *Tree) Get(id ID) (*Node, error) {
+
+	t.RLock()
+	defer t.RUnlock()
+
+	var ok bool
+	var node *Node
+
+	if node, ok = t.registry[id]; ok {
+		return node, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (t *Tree) GetParents(id ID) ([]ID, error) {
+	return nil, errors.New("to implement")
+}
+
+func (t *Tree) GetChildren(id ID) ([]ID, error) {
+	return nil, errors.New("to implement")
+}
+
+func (t *Tree) GetSiblings(id ID) ([]ID, error) {
+	return nil, errors.New("to implement")
 }
