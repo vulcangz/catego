@@ -13,19 +13,10 @@ type loaderTest struct {
 	data   [][2]ID
 }
 
-func newLoaderTest() *loaderTest {
+func newLoaderTest(data [][2]ID) *loaderTest {
 	return &loaderTest{
 		offset: -1,
-		data: [][2]ID{
-			{1, 0},
-			{2, 1},
-			{3, 0},
-			{4, 2},
-			{5, 2},
-			{6, 2},
-			{7, 6},
-			{8, 7},
-		},
+		data:   data,
 	}
 }
 
@@ -43,7 +34,16 @@ func (l *loaderTest) Get() (current ID, parent ID, err error) {
 
 func TestGetParents(t *testing.T) {
 
-	tree, err := NewTree(newLoaderTest())
+	tree, err := NewTree(newLoaderTest([][2]ID{
+		{1, 0},
+		{2, 1},
+		{3, 0},
+		{4, 2},
+		{5, 2},
+		{6, 2},
+		{7, 6},
+		{8, 7},
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,4 +87,26 @@ func TestGetParents(t *testing.T) {
 		t.Logf("given %v received %v and error value %v", test[i].in, p, err)
 
 	}
+}
+
+func BenchmarkGetParents(b *testing.B) {
+	var source [][2]ID
+
+	for i := 0; i < 100; i++ {
+		source = append(source, [2]ID{ID(i + 1), ID(i)})
+	}
+
+	tree, err := NewTree(newLoaderTest(source))
+
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err = tree.GetParents(100)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
 }

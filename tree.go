@@ -70,16 +70,17 @@ func (t *Tree) Get(id ID) (*Node, error) {
 	defer t.RUnlock()
 
 	var ok bool
-	var node *Node
 
-	if node, ok = t.registry[id]; ok {
-		return node, nil
+	if _, ok = t.registry[id]; ok {
+		return t.registry[id], nil
 	}
 	return nil, errors.New("not found")
 }
 
 func (t *Tree) GetParents(id ID) ([]ID, error) {
 
+	t.RLock()
+	defer t.RUnlock()
 	p, err := t.Get(id)
 	if err != nil {
 		return nil, err
