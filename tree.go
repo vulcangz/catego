@@ -40,7 +40,7 @@ func NewTree(loader NodeSource) (*Tree, error) {
 func (t *Tree) Add(current ID, parent ID) {
 
 	t.Lock()
-	defer func() { _ = t.Unlock() }()
+	defer func() { t.Unlock() }()
 	var currentPresent bool
 	var parentPresent bool
 	_, parentPresent = t.registry[parent]
@@ -79,7 +79,26 @@ func (t *Tree) Get(id ID) (*Node, error) {
 }
 
 func (t *Tree) GetParents(id ID) ([]ID, error) {
-	return nil, errors.New("to implement")
+
+	p, err := t.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var parents []ID
+	var currentParent *Node
+
+	currentParent = p.Parent
+
+	for {
+		parents = append(parents, currentParent.Id)
+		if currentParent.Id == 0 {
+			break
+		}
+		currentParent = currentParent.Parent
+	}
+
+	return parents, nil
 }
 
 func (t *Tree) GetChildren(id ID) ([]ID, error) {

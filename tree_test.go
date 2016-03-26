@@ -3,7 +3,9 @@ package catego
 import (
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
+	"reflect"
+
+	"github.com/juju/errgo/errors"
 )
 
 type loaderTest struct {
@@ -16,20 +18,22 @@ func newLoaderTest() *loaderTest {
 		offset: -1,
 		data: [][2]ID{
 			{1, 0},
-			{2, 0},
+			{2, 1},
 			{3, 0},
 			{4, 2},
 			{5, 2},
-			{6, 1},
+			{6, 2},
+			{7, 6},
+			{8, 7},
 		},
 	}
 }
 
 func (l *loaderTest) Next() bool {
-	l.offset++
-	if len(l.data)-1 == l.offset {
+	if len(l.data) == l.offset+1 {
 		return false
 	}
+	l.offset++
 	return true
 }
 
@@ -37,11 +41,50 @@ func (l *loaderTest) Get() (current ID, parent ID, err error) {
 	return l.data[l.offset][0], l.data[l.offset][1], nil
 }
 
-func TestTree(t *testing.T) {
+func TestGetParents(t *testing.T) {
 
 	tree, err := NewTree(newLoaderTest())
 	if err != nil {
 		t.Fatal(err)
 	}
-	spew.Dump(tree)
+
+	test := []struct {
+		in  ID
+		out []ID
+		err error
+	}{
+		{
+			in:  8,
+			out: []ID{7, 6, 2, 1, 0},
+			err: nil,
+		},
+		{
+			in:  9,
+			out: nil,
+			err: errors.New("not found"),
+		},
+		{
+			in:  3,
+			out: []ID{0},
+			err: nil,
+		},
+		{
+			in:  5,
+			out: []ID{2, 1, 0},
+			err: nil,
+		},
+	}
+	for i := range test {
+		var p []ID
+		p, err = tree.GetParents(test[i].in)
+		if !reflect.DeepEqual(p, test[i].out) {
+			t.Fatalf("expected %v received %v", test[i].out, p)
+		}
+		if err != nil && err.Error() != test[i].err.Error() {
+			t.Fatalf("expected error value %q received %q", test[i].err, err)
+		}
+
+		t.Logf("given %v received %v and error value %v", test[i].in, p, err)
+
+	}
 }
