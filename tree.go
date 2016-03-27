@@ -3,14 +3,16 @@ package catego
 import (
 	"sync"
 
+	"github.com/Workiva/go-datastructures/bitarray"
 	"github.com/juju/errgo/errors"
 )
 
 // Tree is the structure that will allow to search nodes in it
 type Tree struct {
 	sync.RWMutex
-	registry IdToCat
+	registry IDToCat
 	rootNode *Node
+	maxID    ID
 }
 
 // NewTree creates a tree using a NodeSource. It will loop on the source until
@@ -19,9 +21,9 @@ func NewTree(loader NodeSource) (*Tree, error) {
 
 	t := &Tree{
 		rootNode: &Node{
-			Id: 0,
+			ID: 0,
 		},
-		registry: make(IdToCat),
+		registry: make(IDToCat),
 	}
 
 	t.registry[0] = t.rootNode
@@ -35,7 +37,7 @@ func NewTree(loader NodeSource) (*Tree, error) {
 		if err != nil {
 			return nil, err
 		}
-		t.Add(c, p)
+		t.add(c, p)
 	}
 	return t, nil
 }
@@ -43,9 +45,13 @@ func NewTree(loader NodeSource) (*Tree, error) {
 // Add adds a new node to the tree. If the node has no parent, use 0. It will be attached to the node root
 func (t *Tree) Add(current ID, parent ID) {
 
-	// TODO: move locker in public method and creates add() that will adds without lock
 	t.Lock()
-	defer func() { t.Unlock() }()
+	defer t.Unlock()
+
+	t.Add(current, parent)
+}
+
+func (t *Tree) add(current ID, parent ID) {
 	var currentPresent bool
 	var parentPresent bool
 	_, parentPresent = t.registry[parent]
@@ -53,14 +59,23 @@ func (t *Tree) Add(current ID, parent ID) {
 
 	if !currentPresent {
 		t.registry[current] = &Node{
-			Id: current,
+			ID: current,
 		}
 	}
 
 	if !parentPresent {
 		t.registry[parent] = &Node{
-			Id: parent,
+			ID:     parent,
+			Parent: t.rootNode,
 		}
+	}
+
+	if current > t.maxID {
+		t.maxID = current
+	}
+
+	if parent > t.maxID {
+		t.maxID = parent
 	}
 
 	t.registry[current].Parent = t.registry[parent]
@@ -72,17 +87,19 @@ func (t *Tree) Add(current ID, parent ID) {
 // Get returns the wanted node
 // complexity is O(1)
 func (t *Tree) Get(id ID) (*Node, error) {
-
-	// TODO: create t.get() to get without lock
 	t.RLock()
 	defer t.RUnlock()
+	return t.get(id)
+}
 
+func (t *Tree) get(id ID) (*Node, error) {
 	var ok bool
 
 	if _, ok = t.registry[id]; ok {
 		return t.registry[id], nil
 	}
 	return nil, errors.New("not found")
+
 }
 
 // GetAncestors returns all the parent to the root down
@@ -91,7 +108,7 @@ func (t *Tree) GetAncestors(id ID) ([]ID, error) {
 
 	t.RLock()
 	defer t.RUnlock()
-	p, err := t.Get(id)
+	p, err := t.get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +119,8 @@ func (t *Tree) GetAncestors(id ID) ([]ID, error) {
 	currentParent = p.Parent
 
 	for {
-		parents = append(parents, currentParent.Id)
-		if currentParent.Id == 0 {
+		parents = append(parents, currentParent.ID)
+		if currentParent.ID == 0 {
 			break
 		}
 		currentParent = currentParent.Parent
@@ -119,9 +136,28 @@ func (t *Tree) GetDescendants(id ID) ([]ID, error) {
 
 	t.RLock()
 	defer t.RUnlock()
+	return t.getChildren(id, nil)
+}
+
+// Exclude returns all node except the provided ones. It is an "heavy"
+// operation.
+func (t *Tree) Exclude(id []ID) ([]ID, error) {
+	t.RLock()
+	defer t.RUnlock()
+	m := make(map[ID]bool, len(id))
+	for i := range id {
+		if id[i] == 0 {
+			return nil, errors.New("root node cant be excluded, its all the tree")
+		}
+		m[id[i]] = true
+	}
+	return t.getChildren(0, m)
+}
+
+func (t *Tree) getChildren(id ID, exclude map[ID]bool) ([]ID, error) {
 	var current *Node
 	var err error
-	current, err = t.Get(id)
+	current, err = t.get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +169,14 @@ func (t *Tree) GetDescendants(id ID) ([]ID, error) {
 			return
 		}
 		for i := range n.Children {
-			allChild = append(allChild, n.Children[i].Id)
+			if exclude != nil {
+				// Do some exclusion
+				var ok bool
+				if _, ok = exclude[n.Children[i].ID]; ok {
+					continue
+				}
+			}
+			allChild = append(allChild, n.Children[i].ID)
 			getChilds(n.Children[i])
 		}
 	}
@@ -143,6 +186,52 @@ func (t *Tree) GetDescendants(id ID) ([]ID, error) {
 	return allChild, nil
 }
 
+// GetSiblings should returns all the node that are at the same level than the current node
+// TODO: implement this
 func (t *Tree) GetSiblings(id ID) ([]ID, error) {
 	return nil, errors.New("to implement")
+}
+
+// GetBlackLister returns a Blacklister object, given the blacklisted and whitelisted nodes
+// Blacklist : node and all children of it are banned
+// Whitelist : all node but those ones and children are banned
+func (t *Tree) GetBlackLister(blacklist []ID, whitelist []ID) (*Blacklister, error) {
+
+	var blacklistedCategory []ID
+	var err error
+
+	if len(whitelist) > 0 {
+		blacklistedCategory, err = t.Exclude(whitelist)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for i := range blacklist {
+		var descendant []ID
+		descendant, err = t.GetDescendants(blacklist[i])
+		if err != nil {
+			return nil, err
+		}
+		blacklistedCategory = append(blacklistedCategory, descendant...)
+		blacklistedCategory = append(blacklistedCategory, blacklist[i])
+	}
+
+	if len(blacklistedCategory) == 0 {
+		return nil, errors.New("no category to ban")
+	}
+
+	b := bitarray.NewBitArray(uint64(t.maxID))
+
+	for i := range blacklistedCategory {
+		err = b.SetBit(uint64(blacklistedCategory[i]))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Blacklister{
+		store: b,
+	}, nil
+
 }

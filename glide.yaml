@@ -1,0 +1,8 @@
+package: github.com/mrsinham/catego
+import:
+- package: github.com/Workiva/go-datastructures
+  subpackages:
+  - bitarray
+- package: github.com/juju/errgo
+  subpackages:
+  - errors

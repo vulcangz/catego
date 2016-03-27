@@ -1,0 +1,12 @@
+hash: 4ffa218a7c231e0a4909200b02ec8f74a3f0f40818af08818bf6a51237182533
+updated: 2016-04-02T16:27:39.005182294+02:00
+imports:
+- name: github.com/juju/errgo
+  version: 08cceb5d0b5331634b9826762a8fd53b29b86ad8
+  subpackages:
+  - errors
+- name: github.com/Workiva/go-datastructures
+  version: 6980a5fcc713d1a79c8fed30699c567648272c08
+  subpackages:
+  - bitarray
+devImports: []
