@@ -32,7 +32,7 @@ func (l *loaderTest) Get() (current ID, parent ID, err error) {
 	return l.data[l.offset][0], l.data[l.offset][1], nil
 }
 
-func TestGetParents(t *testing.T) {
+func TestGetAncestors(t *testing.T) {
 
 	tree, err := NewTree(newLoaderTest([][2]ID{
 		{1, 0},
@@ -76,7 +76,7 @@ func TestGetParents(t *testing.T) {
 	}
 	for i := range test {
 		var p []ID
-		p, err = tree.GetParents(test[i].in)
+		p, err = tree.GetAncestors(test[i].in)
 		if !reflect.DeepEqual(p, test[i].out) {
 			t.Fatalf("expected %v received %v", test[i].out, p)
 		}
@@ -89,10 +89,67 @@ func TestGetParents(t *testing.T) {
 	}
 }
 
-func BenchmarkGetParents(b *testing.B) {
+func TestGetDescendants(t *testing.T) {
+
+	tree, err := NewTree(newLoaderTest([][2]ID{
+		{1, 0},
+		{2, 1},
+		{3, 0},
+		{4, 2},
+		{5, 2},
+		{6, 2},
+		{7, 6},
+		{8, 7},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	test := []struct {
+		in  ID
+		out []ID
+		err error
+	}{
+		{
+			in:  7,
+			out: []ID{8},
+			err: nil,
+		},
+		{
+			in:  0,
+			out: []ID{1, 2, 4, 5, 6, 7, 8, 3},
+			err: nil,
+		},
+		{
+			in:  11,
+			out: nil,
+			err: errors.New("not found"),
+		},
+		{
+			in:  2,
+			out: []ID{4, 5, 6, 7, 8},
+			err: nil,
+		},
+	}
+	for i := range test {
+		var p []ID
+		p, err = tree.GetDescendants(test[i].in)
+		if !reflect.DeepEqual(p, test[i].out) {
+			t.Fatalf("expected %v received %v", test[i].out, p)
+		}
+		if err != nil && err.Error() != test[i].err.Error() {
+			t.Fatalf("expected error value %q received %q", test[i].err, err)
+		}
+
+		t.Logf("given %v received %v and error value %v", test[i].in, p, err)
+
+	}
+}
+
+func BenchmarkGetAncestors(b *testing.B) {
 	var source [][2]ID
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		source = append(source, [2]ID{ID(i + 1), ID(i)})
 	}
 
@@ -103,7 +160,29 @@ func BenchmarkGetParents(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err = tree.GetParents(100)
+		_, err = tree.GetAncestors(1000)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+}
+
+func BenchmarkGetDescendants(b *testing.B) {
+	var source [][2]ID
+
+	for i := 0; i < 1000; i++ {
+		source = append(source, [2]ID{ID(i + 1), ID(i)})
+	}
+
+	tree, err := NewTree(newLoaderTest(source))
+
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err = tree.GetDescendants(0)
 		if err != nil {
 			b.Fatal(err)
 		}
