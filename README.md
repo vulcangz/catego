@@ -30,13 +30,12 @@ This library uses cool libraries as :
 So include them in your path/vendor directories, or use directly :
 
 ```bash
-$ go get github.com/mrsinham/catego
+$ go get gopkg.in/mrsinham/catego.v1
 ```
-
 
 ## Usage
 
-### Example lookup
+### Using the tree
 
 To use it, you just need to create a NodeSource structure that will satisfies this :
 
