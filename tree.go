@@ -1,11 +1,24 @@
 package catego
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/Workiva/go-datastructures/bitarray"
-	"github.com/juju/errgo/errors"
 )
+
+const (
+	DefaultRootNodeID ID = 0
+)
+
+// TreeOptions me
+type TreeOptions struct {
+	// RootNodeID is the id used for the root
+	RootNodeID ID
+	// NoIDSpecialID is the ID meaning : NoID declared for it
+	NoIDSpecialID *ID
+}
 
 // Tree is the structure that will allow to search nodes in it
 type Tree struct {
@@ -13,20 +26,34 @@ type Tree struct {
 	registry IDToCat
 	rootNode *Node
 	maxID    ID
+	option   *TreeOptions
 }
 
-// NewTree creates a tree using a NodeSource. It will loop on the source until
-// Next() returns false and add every node to the tree
+// NewTree creates a tree with all options at default
+// See TreeOption object for all options available
 func NewTree(loader NodeSource) (*Tree, error) {
+	return NewTreeWithOptions(loader, nil)
+}
+
+// NewTreeWithOptions creates a tree using a NodeSource. It will loop on the source until
+// Next() returns false and add every node to the tree
+func NewTreeWithOptions(loader NodeSource, opts *TreeOptions) (*Tree, error) {
+
+	// changing the root node ID
+	rootID := DefaultRootNodeID
+	if opts != nil {
+		rootID = opts.RootNodeID
+	}
 
 	t := &Tree{
 		rootNode: &Node{
-			ID: 0,
+			ID: rootID,
 		},
 		registry: make(IDToCat),
+		option:   opts,
 	}
 
-	t.registry[0] = t.rootNode
+	t.registry[rootID] = t.rootNode
 
 	var c ID
 	var p ID
@@ -52,6 +79,12 @@ func (t *Tree) Add(current ID, parent ID) {
 }
 
 func (t *Tree) add(current ID, parent ID) {
+
+	if t.option != nil && t.option.NoIDSpecialID != nil && current == *t.option.NoIDSpecialID {
+		// this ID is to ignore, no need to store it
+		return
+	}
+
 	var currentPresent bool
 	var parentPresent bool
 	_, parentPresent = t.registry[parent]
@@ -98,7 +131,7 @@ func (t *Tree) get(id ID) (*Node, error) {
 	if _, ok = t.registry[id]; ok {
 		return t.registry[id], nil
 	}
-	return nil, errors.New("not found")
+	return nil, fmt.Errorf("get: id not found %d", id)
 
 }
 
@@ -120,7 +153,7 @@ func (t *Tree) GetAncestors(id ID) ([]ID, error) {
 
 	for {
 		parents = append(parents, currentParent.ID)
-		if currentParent.ID == 0 {
+		if currentParent.ID == t.rootNode.ID {
 			break
 		}
 		currentParent = currentParent.Parent
@@ -146,12 +179,12 @@ func (t *Tree) Exclude(id []ID) ([]ID, error) {
 	defer t.RUnlock()
 	m := make(map[ID]bool, len(id))
 	for i := range id {
-		if id[i] == 0 {
+		if id[i] == t.rootNode.ID {
 			return nil, errors.New("root node cant be excluded, its all the tree")
 		}
 		m[id[i]] = true
 	}
-	return t.getChildren(0, m)
+	return t.getChildren(t.rootNode.ID, m)
 }
 
 func (t *Tree) getChildren(id ID, exclude map[ID]bool) ([]ID, error) {
@@ -208,17 +241,20 @@ func (t *Tree) GetBlackLister(blacklist []ID, whitelist []ID) (*Blacklister, err
 	}
 
 	for i := range blacklist {
+		// NoIDSpecialID means that this special ID means
+		blacklistedCategory = append(blacklistedCategory, blacklist[i])
+		if t.option != nil &&
+			t.option.NoIDSpecialID != nil &&
+			blacklist[i] == *t.option.NoIDSpecialID {
+			continue
+		}
+
 		var descendant []ID
 		descendant, err = t.GetDescendants(blacklist[i])
 		if err != nil {
 			return nil, err
 		}
 		blacklistedCategory = append(blacklistedCategory, descendant...)
-		blacklistedCategory = append(blacklistedCategory, blacklist[i])
-	}
-
-	if len(blacklistedCategory) == 0 {
-		return nil, errors.New("no category to ban")
 	}
 
 	b := bitarray.NewBitArray(uint64(t.maxID))

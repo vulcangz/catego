@@ -61,7 +61,7 @@ func TestGetAncestors(t *testing.T) {
 		{
 			in:  9,
 			out: nil,
-			err: errors.New("not found"),
+			err: errors.New("get: id not found 9"),
 		},
 		{
 			in:  3,
@@ -123,7 +123,7 @@ func TestGetDescendants(t *testing.T) {
 		{
 			in:  11,
 			out: nil,
-			err: errors.New("not found"),
+			err: errors.New("get: id not found 11"),
 		},
 		{
 			in:  2,
