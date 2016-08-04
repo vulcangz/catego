@@ -19,7 +19,7 @@ Assuming this with this library you can :
 
 ## Example use-case
 
-This library has been made to represent a tree of categories in RAM and to know if a category is banned very quickly. If you ban an upper category, every category beneath will be ban as well.
+This library has been made to represent a tree of categories in RAM and to know if a category is banned very quickly. If you ban an upper category, every category beneath will be banned as well.
 
 ## Documentation
 
