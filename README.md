@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/mrsinham/catego.png?branch=master)](https://travis-ci.org/mrsinham/catego)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mrsinham/catego)](https://goreportcard.com/report/github.com/mrsinham/catego)
 
-Catego is a simple library to manage categories (universe, subcat, etc) tree or any tree structure that has the same implementation. The datastructure is threadsafe and has this behaviour :
+Catego is a simple library to manage categories (universe, subcat, etc) tree or any tree structure that has the same implementation. The datastructure is threadsafe and has those specs :
 
 * One node can have only one parent
 * One node can have many children
@@ -16,13 +16,18 @@ Assuming this with this library you can :
 * Get all node of the tree except the given nodes (exclusion)
 * Create a blacklister that will says instantly if a node is banned from the list you provided (if you submit a blacklisted node, all its children will be banned too)
 
+
+## Example use-case
+
+This library has been made to represent a tree of categories in RAM and to know if a category is banned very quickly. If you ban an upper category, every category beneath will be ban as well.
+
 ## Documentation
 
 https://godoc.org/github.com/mrsinham/catego
 
 ## Installation
 
-This library uses cool libraries as :
+This library uses cool libraries as (thanks to the authors) :
 
 * github.com/Workiva/go-datastructures
 * github.com/juju/errgo
@@ -69,7 +74,7 @@ if err != nil {
 
 #### Notes :
 
-The root node is 0. If you want to tells the library that the node is the highest node on the tree, you need to says that its parent is 0.
+The root node is 0. If you want to tells the library that the node is the highest node on the tree, you need to says that its parent is 0 (but you can change it with the TreeOption).
 
 ### Blacklist
 
@@ -94,6 +99,13 @@ if err != nil {
 banned := b.Is(272)
 ```
 
+Because Blacklister is a top level structure on a bitarray, once it has been created, the lookup to know if a node is banned is close to O(1).
+
 #### Notes :
 
 Whitelist means "ban everything but", it is not equal as a safe list because blacklisted categories are always strongest than whitelisted categories.
+
+
+## Contribute
+
+PR and issues are welcome :)

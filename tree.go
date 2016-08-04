@@ -12,7 +12,8 @@ const (
 	DefaultRootNodeID ID = 0
 )
 
-// TreeOptions me
+// TreeOptions is the tool to customize the node tree
+// ie : you can set default ID for the root node
 type TreeOptions struct {
 	// RootNodeID is the id used for the root
 	RootNodeID ID
@@ -69,13 +70,14 @@ func NewTreeWithOptions(loader NodeSource, opts *TreeOptions) (*Tree, error) {
 	return t, nil
 }
 
-// Add adds a new node to the tree. If the node has no parent, use 0. It will be attached to the node root
+// Add adds a new node to the tree. If the node has no parent, use the rootnodeid as parent (default 0).
+// It will be attached to the node root
 func (t *Tree) Add(current ID, parent ID) {
 
 	t.Lock()
 	defer t.Unlock()
 
-	t.Add(current, parent)
+	t.add(current, parent)
 }
 
 func (t *Tree) add(current ID, parent ID) {
@@ -217,12 +219,6 @@ func (t *Tree) getChildren(id ID, exclude map[ID]bool) ([]ID, error) {
 	getChilds(current)
 
 	return allChild, nil
-}
-
-// GetSiblings should returns all the node that are at the same level than the current node
-// TODO: implement this
-func (t *Tree) GetSiblings(id ID) ([]ID, error) {
-	return nil, errors.New("to implement")
 }
 
 // GetBlackLister returns a Blacklister object, given the blacklisted and whitelisted nodes
