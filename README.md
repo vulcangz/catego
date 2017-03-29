@@ -72,7 +72,7 @@ if err != nil {
 // ch has now all the children of node 22.
 ```
 
-#### Notes :
+#### Notes :
 
 The root node is 0. If you want to tells the library that the node is the highest node on the tree, you need to says that its parent is 0 (but you can change it with the TreeOption).
 
