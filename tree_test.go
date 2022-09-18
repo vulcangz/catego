@@ -5,7 +5,7 @@ import (
 
 	"reflect"
 
-	"github.com/juju/errgo/errors"
+	"github.com/juju/errors"
 )
 
 type loaderTest struct {
